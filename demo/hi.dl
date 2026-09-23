@@ -1,0 +1,6 @@
+var main = fun () {
+	var x = 123.45;
+	print x;
+};
+
+main();
