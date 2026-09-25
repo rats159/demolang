@@ -7,6 +7,7 @@ import "core:os"
 Subcommand :: enum {
 	Run,
 	Lex,
+	Parse,
 	Help,
 }
 
@@ -15,9 +16,10 @@ Subcommand_Info :: enum {
 }
 
 subcommands := [Subcommand]bit_set[Subcommand_Info] {
-	.Help = {},
-	.Run  = {.Needs_Filepath},
-	.Lex  = {.Needs_Filepath},
+	.Help  = {},
+	.Run   = {.Needs_Filepath},
+	.Lex   = {.Needs_Filepath},
+	.Parse = {.Needs_Filepath},
 }
 
 main :: proc() {
@@ -63,6 +65,9 @@ process_subcommand :: proc(cmd: Subcommand, info: bit_set[Subcommand_Info]) {
 		for token in tokens {
 			print_token(token)
 		}
+	case .Parse:
+		program := parse_entire_file(source_code)
+		print_program(program)
 	case .Run:
 		unimplemented("Run subcommand")
 	case .Help:
@@ -86,6 +91,8 @@ get_subcommand :: proc() -> Subcommand {
 		return .Help
 	case "lex":
 		return .Lex
+	case "parse":
+		return .Parse
 	case:
 		{
 			fmt.eprintfln(

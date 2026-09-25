@@ -17,12 +17,19 @@ Token_Type :: enum {
 	Open_Curly,
 	Close_Curly,
 	Semicolon,
+	Comma,
+	// Operators
+	Plus,
+	Minus,
+	Star,
+	Slash,
 	EOF,
 }
 
 Token :: struct {
-	type:  Token_Type,
 	value: string,
+	type:  Token_Type,
+	offset: int,
 }
 
 Tokenizer :: struct {
@@ -60,7 +67,7 @@ tokenize_entire_file :: proc(source_code: string) -> []Token {
 
 scan_next_token :: proc(tk: ^Tokenizer) -> Token {
 	if tk.byte_offset >= len(tk.source_code) {
-		return Token{type = .EOF, value = "<EOF>"}
+		return Token{type = .EOF, value = "<EOF>", offset = tk.byte_offset}
 	}
 	skip_whitespace(tk)
 	switch tk_current_char(tk) {
@@ -80,6 +87,16 @@ scan_next_token :: proc(tk: ^Tokenizer) -> Token {
 		return scan_simple_token(tk, .Close_Curly, 1)
 	case ';':
 		return scan_simple_token(tk, .Semicolon, 1)
+	case ',':
+		return scan_simple_token(tk, .Comma, 1)
+	case '+':
+		return scan_simple_token(tk, .Plus, 1)
+	case '-':
+		return scan_simple_token(tk, .Minus, 1)
+	case '*':
+		return scan_simple_token(tk, .Star, 1)
+	case '/':
+		return scan_simple_token(tk, .Slash, 1)
 	case:
 		return scan_invalid_token(tk)
 	}
@@ -93,6 +110,7 @@ scan_invalid_token :: proc(tk: ^Tokenizer) -> Token {
 	token := Token {
 		type  = .Invalid,
 		value = text,
+		offset = start
 	}
 
 	append(&tk.invalid_tokens, token)
@@ -125,7 +143,7 @@ scan_number_token :: proc(tk: ^Tokenizer) -> Token {
 
 	number := tk.source_code[number_start:tk.byte_offset]
 
-	return Token{value = number, type = .Number}
+	return Token{value = number, type = .Number, offset = number_start}
 }
 
 scan_word_token :: proc(tk: ^Tokenizer) -> Token {
@@ -149,13 +167,13 @@ scan_word_token :: proc(tk: ^Tokenizer) -> Token {
 		}
 	}
 
-	return Token{value = word, type = token_type}
+	return Token{value = word, type = token_type, offset = word_start}
 }
 
 scan_simple_token :: proc(tk: ^Tokenizer, type: Token_Type, length: int) -> Token {
 	content := tk.source_code[tk.byte_offset:tk.byte_offset + length]
-	tk.byte_offset += length
-	return Token{type = type, value = content}
+	defer tk.byte_offset += length
+	return Token{type = type, value = content, offset = tk.byte_offset}
 }
 
 skip_whitespace :: proc(tk: ^Tokenizer) {
@@ -177,4 +195,23 @@ tk_advance_char :: proc(tk: ^Tokenizer) {
 tk_current_char :: proc(tk: ^Tokenizer) -> rune {
 	r, _ := utf8.decode_rune_in_string(tk.source_code[tk.byte_offset:])
 	return r
+}
+
+tk_peek_char :: proc(tk: ^Tokenizer, distance: int) -> rune {
+	return utf8.rune_at_pos(tk.source_code[tk.byte_offset:], distance)
+}
+
+find_line_col_from_offset :: proc(source: string, offset: int) -> (int, int) {
+	line := 1
+	col := 1
+
+	for char in source[:offset] {
+		if char == '\n' {
+			line += 1
+			col = 0
+		}
+		col += 1
+	}
+
+	return line, col
 }
